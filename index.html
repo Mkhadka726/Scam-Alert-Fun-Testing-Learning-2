@@ -214,6 +214,21 @@
   <script>
     const rules = [
       {
+  label: "Invalid or test-only web address",
+  weight: 4,
+  regex: /https?:\/\/[^\s]+\.invalid\b/i
+},
+{
+  label: "Suspicious link asking you to claim or verify something",
+  weight: 3,
+  regex: /https?:\/\/[^\s]*(claim|verify|verification|secure|reward|login|account|payment)[^\s]*/i
+},
+{
+  label: "Link uses an IP address instead of a normal domain",
+  weight: 3,
+  regex: /https?:\/\/(?:\d{1,3}\.){3}\d{1,3}(?:[:\/][^\s]*)?/i
+},
+      {
         label: "Request for a verification code",
         weight: 3,
         regex: /\b(verification|security|one[- ]?time|otp)\s*(code|number)?\b|\bsend me the code\b|\bread.*code\b/i
