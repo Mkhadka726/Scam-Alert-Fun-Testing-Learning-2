@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scam Alert</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #64748b;
+      --border: #dbe2ea;
+      --warning: #fff7d6;
+      --danger: #ffe5e5;
+      --safe: #e8f7ed;
+      --accent: #2457d6;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      width: min(900px, 92%);
+      margin: 40px auto;
+    }
+
+    .header {
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 2rem;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 18px;
+      box-shadow: 0 8px 24px rgba(20, 35, 60, 0.06);
+    }
+
+    label {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 170px;
+      resize: vertical;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font: inherit;
+      line-height: 1.5;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    button, select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      background: var(--accent);
+      color: white;
+    }
+
+    button.secondary {
+      background: #e9eef9;
+      color: #18336f;
+    }
+
+    button.danger {
+      background: #b42318;
+    }
+
+    .risk {
+      padding: 14px;
+      border-radius: 12px;
+      margin-top: 14px;
+      font-weight: 700;
+    }
+
+    .risk.low { background: var(--safe); }
+    .risk.medium { background: var(--warning); }
+    .risk.high { background: var(--danger); }
+
+    .finding {
+      border-left: 4px solid #e4a400;
+      padding: 10px 12px;
+      background: #fffaf0;
+      margin: 10px 0;
+      border-radius: 8px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    #transcript {
+      min-height: 70px;
+      padding: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      white-space: pre-wrap;
+    }
+
+    .history-item {
+      border-top: 1px solid var(--border);
+      padding: 10px 0;
+    }
+
+    footer {
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 10px 0 30px;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <div class="header">
+      <h1>🛡️ Scam Alert</h1>
+      <p class="subtitle">Pause. Check the request. Spot common warning signs before you act.</p>
+    </div>
+
+    <section class="card">
+      <label for="channel">Where did it arrive?</label>
+      <select id="channel">
+        <option>Teams</option>
+        <option>Outlook</option>
+        <option>SMS</option>
+        <option>Phone call</option>
+        <option>Other</option>
+      </select>
+
+      <div style="height:16px"></div>
+
+      <label for="message">Message or call notes</label>
+      <textarea id="message" maxlength="3000"
+        placeholder="Paste a suspicious message or write what the caller said..."></textarea>
+
+      <div class="row">
+        <button id="checkBtn">Check message</button>
+        <button class="secondary" id="sampleBtn">Try scam sample</button>
+        <button class="secondary" id="safeSampleBtn">Try normal sample</button>
+      </div>
+
+      <div id="results"></div>
+    </section>
+
+    <section class="card">
+      <h2>🎙️ Live microphone check</h2>
+      <p class="muted">
+        Uses browser speech recognition where supported. A website cannot directly capture
+        both sides of a cellular phone call.
+      </p>
+
+      <div class="row">
+        <button id="startMic">Start microphone check</button>
+        <button class="danger" id="stopMic">Stop</button>
+      </div>
+
+      <p id="micStatus" class="muted">Microphone checker is off.</p>
+      <div id="transcript">Words heard by the browser will appear here.</div>
+    </section>
+
+    <section class="card">
+      <h2>📁 Saved pattern history</h2>
+      <p class="muted">
+        This demo saves only the selected scam category and risk level in this browser using localStorage.
+      </p>
+      <div id="history"></div>
+      <div class="row">
+        <button class="secondary" id="clearHistory">Clear history</button>
+      </div>
+    </section>
+
+    <footer>
+      Educational prototype only. A warning does not prove that a sender or caller is a scammer.
+      Verify requests independently using a contact method you already trust.
+    </footer>
+  </main>
+
+  <script>
+    const rules = [
+      {
+        label: "Request for a verification code",
+        weight: 3,
+        regex: /\b(verification|security|one[- ]?time|otp)\s*(code|number)?\b|\bsend me the code\b|\bread.*code\b/i
+      },
+      {
+        label: "Pressure to act quickly",
+        weight: 2,
+        regex: /\b(urgent|immediately|right now|within \d+ (minutes?|hours?)|next \d+ minutes?|today only|act now)\b/i
+      },
+      {
+        label: "Discourages independent verification",
+        weight: 3,
+        regex: /\b(don'?t call|do not call|don'?t hang up|do not hang up|stay on the line|don'?t tell anyone)\b/i
+      },
+      {
+        label: "Requests money transfer or payment",
+        weight: 3,
+        regex: /\b(transfer|bank transfer|send money|payment|gift card|crypto|bitcoin|secure account|safe account)\b/i
+      },
+      {
+        label: "Requests password or account details",
+        weight: 3,
+        regex: /\b(password|pin|card number|cvv|login details|account details)\b/i
+      },
+      {
+        label: "Threat or account consequence",
+        weight: 2,
+        regex: /\b(account.*(suspend|close|freeze|block)|legal action|arrest|fine|penalty|lose your money)\b/i
+      },
+      {
+        label: "Unexpected prize or reward",
+        weight: 2,
+        regex: /\b(congratulations|you have won|winner|gift card|claim your prize|reward)\b/i
+      },
+      {
+        label: "Remote access request",
+        weight: 3,
+        regex: /\b(anydesk|teamviewer|remote access|install.*app|screen share)\b/i
+      }
+    ];
+
+    const message = document.getElementById("message");
+    const results = document.getElementById("results");
+
+    function analyseText(text) {
+      const matches = [];
+      let score = 0;
+
+      for (const rule of rules) {
+        const match = text.match(rule.regex);
+        if (match) {
+          score += rule.weight;
+          matches.push({
+            label: rule.label,
+            quote: match[0]
+          });
+        }
+      }
+
+      let level = "LOW";
+      let css = "low";
+
+      if (score >= 6) {
+        level = "HIGH";
+        css = "high";
+      } else if (score >= 3) {
+        level = "MEDIUM";
+        css = "medium";
+      }
+
+      return { matches, score, level, css };
+    }
+
+    function renderAnalysis(text) {
+      if (!text.trim()) {
+        results.innerHTML = '<div class="risk medium">Enter some text first.</div>';
+        return;
+      }
+
+      const analysis = analyseText(text);
+
+      let html = `
+        <div class="risk ${analysis.css}">
+          Risk indicator: ${analysis.level} — score ${analysis.score}
+        </div>
+      `;
+
+      if (analysis.matches.length === 0) {
+        html += `
+          <p>No configured warning phrases were found.</p>
+          <p class="muted">That does not prove the message is genuine. Verify unusual requests independently.</p>
+        `;
+      } else {
+        html += "<h3>What stands out</h3>";
+        analysis.matches.forEach(item => {
+          html += `
+            <div class="finding">
+              <strong>${escapeHtml(item.label)}</strong><br>
+              <span class="muted">Matched: “${escapeHtml(item.quote)}”</span>
+            </div>
+          `;
+        });
+
+        html += `
+          <h3>Recommended next step</h3>
+          <p>
+            Do not share verification codes, passwords or payment details.
+            Independently contact the organisation or person using a phone number,
+            app or website you already trust.
+          </p>
+        `;
+      }
+
+      html += `
+        <div class="row">
+          <button class="secondary" onclick="savePattern('${analysis.level}')">
+            Save pattern
+          </button>
+        </div>
+      `;
+
+      results.innerHTML = html;
+    }
+
+    function escapeHtml(value) {
+      return value
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    document.getElementById("checkBtn").addEventListener("click", () => {
+      renderAnalysis(message.value);
+    });
+
+    document.getElementById("sampleBtn").addEventListener("click", () => {
+      message.value =
+        "Hi, it's Alex. I'm locked out. Microsoft sent a verification code to your phone. " +
+        "Send me the code in the next 5 minutes. Please don't call me.";
+      renderAnalysis(message.value);
+    });
+
+    document.getElementById("safeSampleBtn").addEventListener("click", () => {
+      message.value =
+        "Hi, the weekly team meeting has moved to 10:30 tomorrow. " +
+        "Please check the calendar invite when you have a chance.";
+      renderAnalysis(message.value);
+    });
+
+    function savePattern(level) {
+      const channel = document.getElementById("channel").value;
+      const record = {
+        date: new Date().toLocaleString(),
+        channel,
+        level
+      };
+
+      const history = JSON.parse(localStorage.getItem("scamAlertHistory") || "[]");
+      history.unshift(record);
+      localStorage.setItem("scamAlertHistory", JSON.stringify(history.slice(0, 20)));
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const historyBox = document.getElementById("history");
+      const history = JSON.parse(localStorage.getItem("scamAlertHistory") || "[]");
+
+      if (history.length === 0) {
+        historyBox.innerHTML = '<p class="muted">No saved patterns yet.</p>';
+        return;
+      }
+
+      historyBox.innerHTML = history.map(item => `
+        <div class="history-item">
+          <strong>${escapeHtml(item.level)} risk</strong>
+          · ${escapeHtml(item.channel)}
+          <div class="muted">${escapeHtml(item.date)}</div>
+        </div>
+      `).join("");
+    }
+
+    document.getElementById("clearHistory").addEventListener("click", () => {
+      localStorage.removeItem("scamAlertHistory");
+      renderHistory();
+    });
+
+    let recognition = null;
+    let fullTranscript = "";
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    function setupRecognition() {
+      if (!SpeechRecognition) {
+        document.getElementById("micStatus").textContent =
+          "Speech recognition is not supported in this browser.";
+        return false;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-AU";
+
+      recognition.onstart = () => {
+        document.getElementById("micStatus").textContent =
+          "Listening for suspicious phrases…";
+      };
+
+      recognition.onresult = event => {
+        let interim = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const text = event.results[i][0].transcript;
+
+          if (event.results[i].isFinal) {
+            fullTranscript += text + " ";
+          } else {
+            interim += text;
+          }
+        }
+
+        document.getElementById("transcript").textContent =
+          (fullTranscript + interim).trim() || "Listening…";
+
+        const analysis = analyseText(fullTranscript + interim);
+
+        if (analysis.level === "HIGH") {
+          document.getElementById("micStatus").textContent =
+            "⚠️ High-risk warning phrases detected. Pause and verify independently.";
+          if ("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
+        }
+      };
+
+      recognition.onerror = event => {
+        document.getElementById("micStatus").textContent =
+          "Microphone/speech error: " + event.error;
+      };
+
+      recognition.onend = () => {
+        document.getElementById("micStatus").textContent =
+          "Microphone checker stopped.";
+      };
+
+      return true;
+    }
+
+    document.getElementById("startMic").addEventListener("click", () => {
+      if (!recognition && !setupRecognition()) return;
+
+      fullTranscript = "";
+      document.getElementById("transcript").textContent = "Listening…";
+
+      try {
+        recognition.start();
+      } catch (error) {
+        document.getElementById("micStatus").textContent =
+          "Already listening or microphone unavailable.";
+      }
+    });
+
+    document.getElementById("stopMic").addEventListener("click", () => {
+      if (recognition) recognition.stop();
+    });
+
+    renderHistory();
+  </script>
+</body>
+</html>
